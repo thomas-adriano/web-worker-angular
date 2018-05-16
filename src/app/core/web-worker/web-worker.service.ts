@@ -6,9 +6,11 @@ import { Observable, Observer, Subscribable, Subscriber } from 'rxjs';
 })
 export class WebWorkerService implements EventTarget {
   private worker: Worker;
-  private onMessageFn: Function;
-  private onErrorFn: Function;
-  private workerGlobalScopeConsumer: Function;
+  private onMessageFn: (workerGlobalScope: any, evt: MessageEvent) => void;
+  private onErrorFn: (workerGlobalScope: any, evt: ErrorEvent) => void;
+  private onMessageErrorFn: (workerGlobalScope: any, evt: ErrorEvent) => void;
+  private workerGlobalScopeConsumer: (workerGlobalScope: any) => void;
+  private importScripts: string[] = [];
 
   constructor() {}
 
@@ -19,13 +21,34 @@ export class WebWorkerService implements EventTarget {
     const blob = new Blob(
       [
         `
+
+        importScripts(${this.importScripts.join(', ')});
+
         ${
           this.workerGlobalScopeConsumer
             ? '(' + this.workerGlobalScopeConsumer.toString() + ')(this)'
             : undefined
         };
-        onmessage = ${this.onMessageFn.toString()};
-        onerror = ${this.onErrorFn ? this.onErrorFn.toString() : undefined};
+
+        onmessage = function(evt) {
+          (${this.onMessageFn.toString()})(this, evt);
+        };
+        
+        onmessageerror = function(evt) {
+          ${
+            this.onMessageErrorFn
+              ? '(' + this.onMessageErrorFn.toString() + ')(this, evt)'
+              : undefined
+          };
+        }
+
+        onerror = function(evt) {
+          ${
+            this.onErrorFn
+              ? '(' + this.onErrorFn.toString() + ')(this, evt)'
+              : undefined
+          };
+        }
       `
       ],
       { type: 'text/javascript' }
@@ -35,16 +58,27 @@ export class WebWorkerService implements EventTarget {
     this.worker.postMessage(message, transfer);
   }
 
-  public addPropertyToWorkerGlobalScope(c: Function) {
-    console.log(c.toString());
+  public importScript(script: string) {
+    this.importScripts.push(script);
+  }
+
+  public prepareWorkerGlobalScope(c: (workerGlobalScope: any) => void) {
     this.workerGlobalScopeConsumer = c;
   }
 
-  public onMessage(fn: Function): void {
+  public onMessage(
+    fn: (workerGlobalScope: any, evt: MessageEvent) => void
+  ): void {
     this.onMessageFn = fn;
   }
 
-  public onError(fn: Function): void {
+  public onMessageError(
+    fn: (workerGlobalScope: any, evt: ErrorEvent) => void
+  ): void {
+    this.onMessageErrorFn = fn;
+  }
+
+  public onError(fn: (workerGlobalScope: any, evt: ErrorEvent) => void): void {
     this.onErrorFn = fn;
   }
 
