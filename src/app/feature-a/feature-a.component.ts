@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { WebWorkerService } from '../core/web-worker/web-worker.service';
 
+declare const WorkerGlobalScope: any;
 @Component({
   selector: 'app-feature-a',
   templateUrl: './feature-a.component.html',
@@ -10,10 +11,15 @@ export class FeatureAComponent implements OnInit {
   constructor(private webWorkerService: WebWorkerService) {}
 
   ngOnInit() {
-    console.log('FEATURE A ONINIT');
-    // this.webWorkerService.onMessage().subscribe(e => {
-    //   console.log('RECEBEUOOOOO: ', e.data);
-    // });
+    this.webWorkerService.addPropertyToWorkerGlobalScope((scope: any) => {
+      scope.blah = () => console.log('BLAH');
+    });
+
+    this.webWorkerService.onMessage(e => {
+      console.log('RECEBEUOOOOO: ', e.data);
+      blah();
+    });
+
     this.webWorkerService.postMessage([2, 3]);
   }
 }

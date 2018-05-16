@@ -6,59 +6,79 @@ import { Observable, Observer, Subscribable, Subscriber } from 'rxjs';
 })
 export class WebWorkerService implements EventTarget {
   private worker: Worker;
-  private onMessageObservervable: Observable<MessageEvent>;
-  private onMessageSubscriber: Subscriber<MessageEvent>;
+  private onMessageFn: Function;
+  private onErrorFn: Function;
+  private workerGlobalScopeConsumer: Function;
 
-  constructor() {
+  constructor() {}
+
+  public postMessage(message: any, transfer?: any[]): void {
+    if (!message || !this.onMessageFn) {
+      return;
+    }
     const blob = new Blob(
       [
         `
-        onmessage = function(e) { console.log(e.data) };
-        onerror = function(e) { e.data[0].next(e.data.slice(1)[0]) };
+        ${
+          this.workerGlobalScopeConsumer
+            ? '(' + this.workerGlobalScopeConsumer.toString() + ')(this)'
+            : undefined
+        };
+        onmessage = ${this.onMessageFn.toString()};
+        onerror = ${this.onErrorFn ? this.onErrorFn.toString() : undefined};
       `
       ],
       { type: 'text/javascript' }
     );
 
     this.worker = new Worker(URL.createObjectURL(blob));
-
-    this.onMessageObservervable = new Observable(subscriber => {
-      console.log('observer create');
-      this.onMessageSubscriber = subscriber;
-    });
-    this.onMessageObservervable.subscribe();
+    this.worker.postMessage(message, transfer);
   }
 
-  public postMessage(message: any, transfer?: any[]): void {
-    if (!message) {
-      return;
-    }
-    console.log('postmessage');
-    debugger;
-    this.worker.postMessage([this.onMessageSubscriber, message], transfer);
+  public addPropertyToWorkerGlobalScope(c: Function) {
+    console.log(c.toString());
+    this.workerGlobalScopeConsumer = c;
   }
 
-  public onMessage(): Observable<MessageEvent> {
-    return this.onMessageObservervable;
+  public onMessage(fn: Function): void {
+    this.onMessageFn = fn;
   }
 
-  public onError(): Observable<ErrorEvent> {
-    return new Observable(observer => {
-      this.worker.onerror = (e: ErrorEvent) => {
-        observer.next(e);
-      };
-    });
+  public onError(fn: Function): void {
+    this.onErrorFn = fn;
   }
 
   public terminate(): void {
+    if (!this.worker) {
+      return;
+    }
     this.worker.terminate();
   }
 
-  public addEventListener(): void {}
+  public addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject
+  ): void {
+    if (!this.worker) {
+      return;
+    }
+    this.worker.addEventListener(type, listener);
+  }
 
-  public removeEventListener(): void {}
+  public removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject
+  ): void {
+    if (!this.worker) {
+      return;
+    }
+    this.worker.removeEventListener(type, listener);
+  }
 
   public dispatchEvent(evt: Event): boolean {
-    return false;
+    if (!this.worker) {
+      return false;
+    }
+    return this.worker.dispatchEvent(evt);
   }
 }
