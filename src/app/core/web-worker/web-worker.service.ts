@@ -10,7 +10,7 @@ export class WebWorkerService implements EventTarget {
   private onErrorFn: (workerGlobalScope: any, evt: ErrorEvent) => void;
   private onMessageErrorFn: (workerGlobalScope: any, evt: ErrorEvent) => void;
   private workerGlobalScopeConsumer: (workerGlobalScope: any) => void;
-  private importScripts: string[] = [];
+  private importedScripts: string[] = [];
 
   constructor() {}
 
@@ -21,8 +21,7 @@ export class WebWorkerService implements EventTarget {
     const blob = new Blob(
       [
         `
-
-        importScripts(${this.importScripts.join(', ')});
+        importScripts(${this.importedScripts.join(', ')});
 
         ${
           this.workerGlobalScopeConsumer
@@ -59,7 +58,18 @@ export class WebWorkerService implements EventTarget {
   }
 
   public importScript(script: string) {
-    this.importScripts.push(script);
+    let newStr = script;
+    if (!script.startsWith("'")) {
+      // a url destes scripts devem estar entre aspas simples
+      newStr = "'" + script + "'";
+    }
+    this.importedScripts.push(newStr);
+  }
+
+  public importScripts(scripts: string[]) {
+    scripts.forEach(s => {
+      this.importScript(s);
+    });
   }
 
   public prepareWorkerGlobalScope(c: (workerGlobalScope: any) => void) {

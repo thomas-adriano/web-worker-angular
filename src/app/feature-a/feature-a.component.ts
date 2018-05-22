@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { WebWorkerService } from '../core/web-worker/web-worker.service';
 
 declare const WorkerGlobalScope: any;
-declare const objectdetect, Smoother;
+declare const objectdetect: any, Smoother: any;
 @Component({
   selector: 'app-feature-a',
   templateUrl: './feature-a.component.html',
@@ -12,29 +12,45 @@ export class FeatureAComponent implements OnInit {
   constructor(private webWorkerService: WebWorkerService) {}
 
   ngOnInit() {
+    const scripts = [
+      'http://localhost:4200/assets/libs/smoother.js',
+      'http://localhost:4200/assets/libs/js-objectdetect/js/objectdetect-ww.js',
+      'http://localhost:4200/assets/libs/js-objectdetect/js/objectdetect.frontalface.js'
+    ];
+
+    this.webWorkerService.importScripts(scripts);
+
     this.webWorkerService.prepareWorkerGlobalScope((workerGlobalScope: any) => {
-      workerGlobalScope.blah = () => console.log('BLAH');
+      workerGlobalScope.blah = () => console.log('say blah');
     });
 
-    this.webWorkerService.importScript('\'http://localhost:4200/assets/libs/smoother.js\'');
-    this.webWorkerService.importScript(
-      '\'http://localhost:4200/assets/libs/js-objectdetect/js/objectdetect.js\''
-    );
-    this.webWorkerService.importScript(
-      '\'http://localhost:4200/assets/libs/js-objectdetect/js/objectdetect.frontalface.js\''
-    );
-
     this.webWorkerService.onMessage((workerGlobalScope, e) => {
-      console.log('RECEBEUOOOOO: ', e.data);
+      console.log('onMessage');
       workerGlobalScope.blah();
+      const width = 500;
+      const height = 500;
       const detector = new workerGlobalScope.objectdetect.detector(
-        500,
-        500,
+        width,
+        height,
         1.1,
         workerGlobalScope.objectdetect.frontalface
       );
+      console.log(e.data);
+      const coords = detector.detect(e.data, 1);
+      console.log(coords);
     });
 
-    this.webWorkerService.postMessage([2, 3]);
+    const width = 500;
+    const height = 500;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    const video = document.createElement('video');
+    video.width = width;
+    video.height = height;
+    context.drawImage(video, 0, 0, width, height);
+    const imageData = context.getImageData(0, 0, width, height).data;
+    this.webWorkerService.postMessage(imageData);
   }
 }
