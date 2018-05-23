@@ -17,6 +17,8 @@ export class WebWorkerService implements EventTarget {
   ) => void;
   private workerGlobalScopeConsumer: (workerGlobalScope: any) => void;
   private lastWorkerGlobalScopeConsumer: (workerGlobalScope: any) => void;
+  private constants = [];
+  private lastConstants = [];
   private importedScripts: string[] = [];
   /**
    * indica se um novo script foi adicionado. É utilizado para saber se o worker
@@ -68,6 +70,11 @@ export class WebWorkerService implements EventTarget {
     this.dirty = true;
     this.lastWorkerGlobalScopeConsumer = this.workerGlobalScopeConsumer;
     this.workerGlobalScopeConsumer = c;
+  }
+
+  public defineConstant(name: string, value: any) {
+    this.dirty = true;
+    this.constants.push({ name, value });
   }
 
   public onMessage(
@@ -159,14 +166,39 @@ export class WebWorkerService implements EventTarget {
           this.workerGlobalScopeConsumer.toString()
         : false);
 
+    const constantsFirstChange =
+      !this.lastConstants.length && !!this.constants.length;
+    const constantsChanged =
+      constantsFirstChange ||
+      (this.lastConstants
+        ? this.lastConstants.toString() !== this.constants.toString()
+        : false);
+
     return (
       this.dirty &&
       (onMessageChanged ||
         onMessageErrorChanged ||
         onErrorChanged ||
         workerGlobalScopeConsumerChanged ||
+        constantsChanged ||
         this.scriptAdded)
     );
+  }
+
+  private interpolateConstants() {
+    if (!this.constants) {
+      return '';
+    }
+
+    return this.constants
+      .map(e => {
+        let val = e.value;
+        if (typeof val === 'string') {
+          val = `'${val}'`;
+        }
+        return `const ${e.name} = ${val};`;
+      })
+      .join('\n');
   }
 
   private getScriptBlob() {
@@ -174,6 +206,8 @@ export class WebWorkerService implements EventTarget {
       [
         `
         importScripts(${this.importedScripts.join(', ')});
+
+        ${this.interpolateConstants()}
 
         ${
           this.workerGlobalScopeConsumer

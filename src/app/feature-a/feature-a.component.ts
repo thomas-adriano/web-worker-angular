@@ -19,6 +19,7 @@ export class FeatureAComponent implements OnInit {
     });
 
     this.webWorkerService.importScripts(scripts);
+    this.webWorkerService.defineConstant('niceConstant', 55);
 
     this.webWorkerService.onMessage((workerGlobalScope, e) => {
       console.log('onMessage:', e.data);
@@ -86,6 +87,15 @@ export class FeatureAComponent implements OnInit {
     setTimeout(() => {
       this.webWorkerService.postMessage('nothing changed');
     }, 11000);
+
+    setTimeout(() => {
+      this.webWorkerService.defineConstant('anooother', 'hehe');
+      this.webWorkerService.postMessage('constants changed');
+    }, 12000);
+
+    setTimeout(() => {
+      this.webWorkerService.postMessage('nothing changed');
+    }, 13000);
   }
 
   private testObjectDetect() {
@@ -97,11 +107,9 @@ export class FeatureAComponent implements OnInit {
 
     this.webWorkerService.importScripts(scripts);
 
-    this.webWorkerService.prepareWorkerGlobalScope(
-      (workerGlobalScope: any) => {
-        workerGlobalScope.blah = () => console.log('say bleh');
-      }
-    );
+    this.webWorkerService.prepareWorkerGlobalScope((workerGlobalScope: any) => {
+      workerGlobalScope.blah = () => console.log('say bleh');
+    });
 
     this.webWorkerService.onMessage((workerGlobalScope, e) => {
       console.log('onMessage');
