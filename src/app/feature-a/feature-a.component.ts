@@ -21,10 +21,13 @@ export class FeatureAComponent implements OnInit {
     this.webWorkerService.importScripts(scripts);
     this.webWorkerService.defineConstant('niceConstant', 55);
 
-    this.webWorkerService.onMessage((workerGlobalScope, e) => {
-      console.log('onMessage:', e.data);
+    this.webWorkerService.onMessage((workerGlobalScope, evt, postMessage) => {
+      console.log('main to webworker: ', evt.data);
+      postMessage('MESSAGE RESULT');
     });
-
+    this.webWorkerService.onMessageReceived().subscribe(msgEvt => {
+      console.log('webworker to main:', msgEvt.data);
+    });
     this.webWorkerService.postMessage('first postMessage');
 
     setTimeout(() => {

@@ -1,13 +1,21 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { Observable, Observer, Subscribable, Subscriber } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
-export class WebWorkerService implements EventTarget {
+export class WebWorkerService implements EventTarget, OnDestroy {
   private worker: Worker;
-  private onMessageFn: (workerGlobalScope: any, evt: MessageEvent) => void;
-  private lastOnMessageFn: (workerGlobalScope: any, evt: MessageEvent) => void;
+  private onMessageFn: (
+    workerGlobalScope: any,
+    evt: MessageEvent,
+    postMessage: (a: any) => void
+  ) => void;
+  private lastOnMessageFn: (
+    workerGlobalScope: any,
+    evt: MessageEvent,
+    postMessage: (a: any) => void
+  ) => void;
   private onErrorFn: (workerGlobalScope: any, evt: ErrorEvent) => void;
   private lastOnErrorFn: (workerGlobalScope: any, evt: ErrorEvent) => void;
   private onMessageErrorFn: (workerGlobalScope: any, evt: ErrorEvent) => void;
@@ -30,8 +38,18 @@ export class WebWorkerService implements EventTarget {
    * Alterações são incorporadas ao executar o postMessage();
    */
   private dirty = false;
+  private onMessageReceivedObservable: Observable<MessageEvent>;
+  private onMessageReceivedObserver: Observer<MessageEvent>;
 
-  constructor() {}
+  constructor() {
+    this.onMessageReceivedObservable = new Observable(observer => {
+      this.onMessageReceivedObserver = observer;
+    });
+  }
+
+  ngOnDestroy() {
+    this.onMessageReceivedObserver.complete();
+  }
 
   public postMessage(message: any, transfer?: any[]): void {
     if (!message || !this.onMessageFn) {
@@ -40,6 +58,12 @@ export class WebWorkerService implements EventTarget {
     if (!this.worker || this.workerPropertiesChanged()) {
       console.log('CREATED');
       this.worker = new Worker(URL.createObjectURL(this.getScriptBlob()));
+      this.worker.onmessage = (evt: MessageEvent) => {
+        this.onMessageReceivedObserver.next(evt);
+      };
+      this.worker.onerror = (evt: ErrorEvent) => {
+        this.onMessageReceivedObserver.error(evt);
+      };
       // como o worker foi recriado, seta esta flag para false
       this.scriptAdded = false;
       this.dirty = false;
@@ -77,8 +101,16 @@ export class WebWorkerService implements EventTarget {
     this.constants.push({ name, value });
   }
 
+  public onMessageReceived(): Observable<MessageEvent> {
+    return this.onMessageReceivedObservable;
+  }
+
   public onMessage(
-    fn: (workerGlobalScope: any, evt: MessageEvent) => void
+    fn: (
+      workerGlobalScope: any,
+      evt: MessageEvent,
+      postMessage?: (a: any) => void
+    ) => void
   ): void {
     this.dirty = true;
     this.lastOnMessageFn = this.onMessageFn;
@@ -216,9 +248,9 @@ export class WebWorkerService implements EventTarget {
         };
 
         onmessage = function(evt) {
-          (${this.onMessageFn.toString()})(this, evt);
+          (${this.onMessageFn.toString()})(this, evt, postMessage);
         };
-        
+
         onmessageerror = function(evt) {
           ${
             this.onMessageErrorFn
