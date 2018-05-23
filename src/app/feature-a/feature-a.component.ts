@@ -12,6 +12,83 @@ export class FeatureAComponent implements OnInit {
   constructor(private webWorkerService: WebWorkerService) {}
 
   ngOnInit() {
+    const scripts = ['http://localhost:4200/assets/libs/smoother.js'];
+
+    this.webWorkerService.prepareWorkerGlobalScope((workerGlobalScope: any) => {
+      workerGlobalScope.blah = () => console.log('say blah');
+    });
+
+    this.webWorkerService.importScripts(scripts);
+
+    this.webWorkerService.onMessage((workerGlobalScope, e) => {
+      console.log('onMessage:', e.data);
+    });
+
+    this.webWorkerService.postMessage('first postMessage');
+
+    setTimeout(() => {
+      this.webWorkerService.postMessage('nothing changed');
+    }, 1000);
+
+    setTimeout(() => {
+      this.webWorkerService.prepareWorkerGlobalScope(
+        (workerGlobalScope: any) => {
+          workerGlobalScope.blah = () => console.log('say bleh');
+        }
+      );
+      this.webWorkerService.postMessage('workerGlobalScope changed');
+    }, 2000);
+
+    setTimeout(() => {
+      this.webWorkerService.postMessage('nothing changed');
+    }, 3000);
+
+    setTimeout(() => {
+      this.webWorkerService.importScript(
+        'http://localhost:4200/assets/libs/js-objectdetect/js/objectdetect-ww.js'
+      );
+      this.webWorkerService.postMessage('scripts changed');
+    }, 4000);
+
+    setTimeout(() => {
+      this.webWorkerService.postMessage('nothing changed');
+    }, 5000);
+
+    setTimeout(() => {
+      this.webWorkerService.onMessage((workerGlobalScope, e) => {
+        console.log('onMessage 2', e.data);
+      });
+      this.webWorkerService.postMessage('onMessage changed');
+    }, 6000);
+
+    setTimeout(() => {
+      this.webWorkerService.postMessage('nothing changed');
+    }, 7000);
+
+    setTimeout(() => {
+      this.webWorkerService.onMessageError((workerGlobalScope, e) => {
+        console.log('onMessageError 2', e);
+      });
+      this.webWorkerService.postMessage('onMessageError changed');
+    }, 8000);
+
+    setTimeout(() => {
+      this.webWorkerService.postMessage('nothing changed');
+    }, 9000);
+
+    setTimeout(() => {
+      this.webWorkerService.onError((workerGlobalScope, e) => {
+        console.log('onError 2', e);
+      });
+      this.webWorkerService.postMessage('onError changed');
+    }, 10000);
+
+    setTimeout(() => {
+      this.webWorkerService.postMessage('nothing changed');
+    }, 11000);
+  }
+
+  private testObjectDetect() {
     const scripts = [
       'http://localhost:4200/assets/libs/smoother.js',
       'http://localhost:4200/assets/libs/js-objectdetect/js/objectdetect-ww.js',
@@ -20,9 +97,11 @@ export class FeatureAComponent implements OnInit {
 
     this.webWorkerService.importScripts(scripts);
 
-    this.webWorkerService.prepareWorkerGlobalScope((workerGlobalScope: any) => {
-      workerGlobalScope.blah = () => console.log('say blah');
-    });
+    this.webWorkerService.prepareWorkerGlobalScope(
+      (workerGlobalScope: any) => {
+        workerGlobalScope.blah = () => console.log('say bleh');
+      }
+    );
 
     this.webWorkerService.onMessage((workerGlobalScope, e) => {
       console.log('onMessage');
